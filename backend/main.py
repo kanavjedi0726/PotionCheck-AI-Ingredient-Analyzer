@@ -7,7 +7,7 @@ from PIL import Image
 import io
 import json
 from dotenv import load_dotenv
-import google.generativeai as genai
+from groq import Groq
 
 load_dotenv()
 
@@ -26,14 +26,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+client = Groq(
+    api_key=os.getenv("GROQ_API_KEY"),
+)
 
 class AnalyzeRequest(BaseModel):
     ingredients_text: str
 
 SYSTEM_PROMPT = """You are an expert food safety analyst. You will be given a list of food ingredients. For each ingredient, identify whether it is safe, requires caution, or is harmful to human health. Explain why harmful or cautionary ingredients are flagged, list countries where they are banned or restricted, and suggest a healthier alternative where applicable. Respond ONLY in valid JSON with this exact structure — no preamble, no markdown: { "ingredients": [ { "name": "", "status": "safe or caution or harmful", "reason": "", "banned_in": [], "alternative": "" } ], "overall_safety_score": 0-100, "summary": "" }"""
-
-model = genai.GenerativeModel('gemini-2.0-flash', system_instruction=SYSTEM_PROMPT)
 
 @app.post("/api/extract-text")
 async def extract_text(file: UploadFile = File(...)):
@@ -54,10 +54,23 @@ async def analyze_ingredients(request: AnalyzeRequest):
         raise HTTPException(status_code=400, detail="Ingredients text cannot be empty.")
         
     try:
-        response = model.generate_content(request.ingredients_text)
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "system",
+                    "content": SYSTEM_PROMPT
+                },
+                {
+                    "role": "user",
+                    "content": request.ingredients_text
+                }
+            ],
+            model="llama-3.3-70b-versatile",
+            response_format={"type": "json_object"},
+        )
         
         # Extract the json text from the response
-        response_text = response.text
+        response_text = chat_completion.choices[0].message.content
         
         # Clean up in case there's any markdown formatting accidentally returned
         response_text = response_text.strip()
