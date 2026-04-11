@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@theme {
+  --font-sans: 'Inter', sans-serif;
+  
+  --animate-fade-in-up: fade-in-up 0.5s ease-out forwards;
+  
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 font-sans antialiased min-h-screen selection:bg-teal-200 selection:text-teal-900;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-white/70 backdrop-blur-md border border-white/40 border-solid shadow-xl rounded-2xl;
+  }
+  
+  .btn-primary {
+    @apply bg-slate-900 text-white font-medium px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:bg-slate-800 transition-all active:scale-95 duration-200 disabled:opacity-50 disabled:active:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-slate-800 border border-slate-200 border-solid font-medium px-6 py-3 rounded-xl shadow-sm hover:shadow-md hover:bg-slate-50 transition-all active:scale-95 duration-200 flex items-center justify-center gap-2;
+  }
+
+  .tab-active {
+    @apply bg-white text-slate-900 shadow-sm rounded-lg font-medium;
+  }
+
+  .tab-inactive {
+    @apply text-slate-500 hover:text-slate-700 hover:bg-slate-100/50 rounded-lg font-medium transition-colors;
+  }
+}
