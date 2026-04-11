@@ -7,7 +7,7 @@ PotionCheck is a full-stack web application that allows users to scan barcodes, 
 
 ## Tech Stack
 * **Frontend**: React, TypeScript, Vite, Tailwind CSS, Lucide Icons
-* **Backend**: Python, FastAPI, Anthropic API (Claude), Pytesseract (OCR)
+* **Backend**: Python, FastAPI, Gemini API (Google), Pytesseract (OCR)
 
 ## Prerequisites
 
@@ -16,7 +16,7 @@ PotionCheck is a full-stack web application that allows users to scan barcodes, 
 3. **Tesseract OCR Binary** (Required for the `Upload Label` feature to work)
     - **Windows**: Install from [UB-Mannheim/tesseract](https://github.com/UB-Mannheim/tesseract/wiki).
     - Ensure it is in your system's PATH, or provide the path in the `.env` file (e.g. `TESSERACT_CMD_PATH=C:\Program Files\Tesseract-OCR\tesseract.exe`).
-4. **Anthropic API Key**: Required for the core analysis.
+4. **Google Gemini API Key**: Required for the core analysis.
 
 ## Setup Instructions
 
@@ -35,7 +35,7 @@ pip install -r requirements.txt
 
 Create a `.env` file in the `backend` directory based on `.env.example`:
 ```env
-ANTHROPIC_API_KEY=your_api_key_here
+GEMINI_API_KEY=your_api_key_here
 TESSERACT_CMD_PATH=C:\Program Files\Tesseract-OCR\tesseract.exe  # Only needed if not in PATH
 ```
 
