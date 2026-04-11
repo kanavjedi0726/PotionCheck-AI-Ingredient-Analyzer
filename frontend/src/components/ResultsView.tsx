@@ -74,8 +74,14 @@ export const ResultsView = ({ data, onReset }: Props) => {
             </div>
           </div>
 
-          <div className="max-w-xl mx-auto space-y-2">
-            <h2 className="text-2xl font-bold text-slate-900">Safety Analysis</h2>
+          <div className="max-w-xl mx-auto space-y-2 mt-4">
+            {data.productName && (
+              <div className="mb-6">
+                <span className="text-xs font-bold text-teal-600 uppercase tracking-widest mb-1 block">Scanned Product</span>
+                <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900">{data.productName}</h1>
+              </div>
+            )}
+            <h2 className="text-2xl font-bold text-slate-900 pt-2 border-t border-slate-100">Safety Analysis</h2>
             <p className="text-slate-600 leading-relaxed">{data.summary}</p>
           </div>
         </div>

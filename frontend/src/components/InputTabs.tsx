@@ -16,12 +16,16 @@ export const InputTabs = ({ onAnalyzing, onAnalysisComplete, onError }: Props) =
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const performAnalysis = async (ingredientsText: string) => {
+  const performAnalysis = async (ingredientsText: string, productName?: string) => {
     try {
       const resp = await axios.post('http://127.0.0.1:8000/api/analyze', {
         ingredients_text: ingredientsText
       });
-      onAnalysisComplete(resp.data);
+      const data = resp.data;
+      if (productName) {
+        data.productName = productName;
+      }
+      onAnalysisComplete(data);
     } catch (err: any) {
       onError(err.response?.data?.detail || err.message || "Failed to analyze ingredients.");
     }
@@ -40,11 +44,12 @@ export const InputTabs = ({ onAnalyzing, onAnalysisComplete, onError }: Props) =
       }
       
       const ingredientsText = resp.data.product.ingredients_text;
+      const productName = resp.data.product.product_name;
       if (!ingredientsText) {
         throw new Error('Ingredient list not available for this product.');
       }
       
-      await performAnalysis(ingredientsText);
+      await performAnalysis(ingredientsText, productName);
     } catch (err: any) {
       onError(err.message || 'Error fetching product from OpenFoodFacts.');
     } finally {

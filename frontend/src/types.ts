@@ -10,4 +10,5 @@ export interface AnalysisResponse {
   ingredients: Ingredient[];
   overall_safety_score: number;
   summary: string;
+  productName?: string;
 }
