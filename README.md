@@ -1,4 +1,5 @@
-# PotionCheck 🧪
+# PotionCheck 🧪 (Hackawarts-Project)
+Topic: AI Powered Ingredient Intelligence System
 
 AI-Powered Ingredient Intelligence System
 

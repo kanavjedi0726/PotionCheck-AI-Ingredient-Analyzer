@@ -18,7 +18,7 @@ export const InputTabs = ({ onAnalyzing, onAnalysisComplete, onError }: Props) =
 
   const performAnalysis = async (ingredientsText: string) => {
     try {
-      const resp = await axios.post('http://localhost:8000/api/analyze', {
+      const resp = await axios.post('http://127.0.0.1:8000/api/analyze', {
         ingredients_text: ingredientsText
       });
       onAnalysisComplete(resp.data);
@@ -63,7 +63,7 @@ export const InputTabs = ({ onAnalyzing, onAnalysisComplete, onError }: Props) =
       const formData = new FormData();
       formData.append('file', selectedFile);
       
-      const resp = await axios.post('http://localhost:8000/api/extract-text', formData, {
+      const resp = await axios.post('http://127.0.0.1:8000/api/extract-text', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
