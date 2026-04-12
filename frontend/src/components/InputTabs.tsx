@@ -33,7 +33,7 @@ export const InputTabs = ({ onAnalyzing, onAnalysisComplete, onError }: Props) =
         codeReaderRef.current = new BrowserMultiFormatReader();
       }
       
-      codeReaderRef.current.decodeFromVideoDevice(undefined, videoRef.current, (result, err) => {
+      codeReaderRef.current.decodeFromVideoDevice(null, videoRef.current, (result) => {
         if (result) {
           const text = result.getText();
           if (text) {
