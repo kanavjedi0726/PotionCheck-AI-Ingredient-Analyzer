@@ -53,31 +53,33 @@ export const IngredientCard = ({ ingredient }: Props) => {
   const config = getStatusConfig(ingredient.status);
 
   return (
-    <div className={`rounded-xl border ${config.border} ${config.bg} transition-all duration-300 overflow-hidden`}>
+    <div className={`rounded-xl border ${config.border} ${config.bg} transition-all duration-300 overflow-hidden shadow-sm hover:shadow-md`}>
       <div 
-        className="p-4 flex items-center justify-between cursor-pointer hover:bg-black/5"
+        className="p-5 flex items-center justify-between cursor-pointer hover:bg-black/[0.02]"
         onClick={() => setExpanded(!expanded)}
       >
-        <div className="flex items-center gap-3">
-          {config.icon}
+        <div className="flex items-center gap-4">
+          <div className={`p-2.5 rounded-xl ${config.badgeBg} shadow-sm`}>
+            {config.icon}
+          </div>
           <div>
-            <h3 className="font-semibold text-slate-900 capitalize">{ingredient.name}</h3>
-            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${config.badgeBg} ${config.text} uppercase tracking-wider`}>
+            <h3 className="text-lg font-bold text-slate-900 capitalize tracking-tight mb-0.5">{ingredient.name}</h3>
+            <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${config.badgeBg} ${config.text} uppercase tracking-widest inline-block`}>
               {config.label}
             </span>
           </div>
         </div>
-        <button className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-full hover:bg-slate-200/50">
+        <button className="text-slate-400 hover:text-slate-700 transition-colors p-2 rounded-full hover:bg-slate-200/60">
           {expanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
         </button>
       </div>
 
-      <div className={`px-4 pb-4 grid gap-3 transition-all duration-300 ${expanded ? 'grid-rows-[1fr] opacity-100 mt-2' : 'grid-rows-[0fr] opacity-0 pb-0 m-0'}`}>
-        <div className="overflow-hidden space-y-3">
+      <div className={`px-5 pb-5 grid gap-4 transition-all duration-300 ${expanded ? 'grid-rows-[1fr] opacity-100 mt-2' : 'grid-rows-[0fr] opacity-0 pb-0 m-0'}`}>
+        <div className="overflow-hidden space-y-4">
           {ingredient.reason && (
-             <div>
-               <p className="text-sm font-medium text-slate-700 mb-1">Analysis</p>
-               <p className="text-sm text-slate-600 leading-relaxed">{ingredient.reason}</p>
+             <div className="bg-white/60 p-4 rounded-xl border border-slate-200/50 shadow-sm">
+               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Detailed Analysis</p>
+               <p className="text-sm text-slate-700 leading-relaxed">{ingredient.reason}</p>
              </div>
           )}
           
@@ -97,9 +99,9 @@ export const IngredientCard = ({ ingredient }: Props) => {
           )}
 
           {ingredient.alternative && (
-            <div className="bg-white/60 p-3 rounded-lg border border-slate-200/60 mt-2">
-              <p className="text-sm font-medium text-emerald-700 mb-1">Healthier Alternative</p>
-              <p className="text-sm text-slate-700">{ingredient.alternative}</p>
+            <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 shadow-sm mt-2">
+              <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-1.5">Healthier Alternative</p>
+              <p className="text-sm text-emerald-800 font-medium">{ingredient.alternative}</p>
             </div>
           )}
         </div>

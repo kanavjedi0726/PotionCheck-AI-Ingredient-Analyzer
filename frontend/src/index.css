@@ -6,6 +6,8 @@
   --font-sans: 'Inter', sans-serif;
   
   --animate-fade-in-up: fade-in-up 0.5s ease-out forwards;
+  --animate-blob: blob 7s infinite;
+  --animate-gradient-slow: gradient 15s ease infinite;
   
   @keyframes fade-in-up {
     from {
@@ -16,6 +18,19 @@
       opacity: 1;
       transform: translateY(0);
     }
+  }
+
+  @keyframes blob {
+    0% { transform: translate(0px, 0px) scale(1); }
+    33% { transform: translate(30px, -50px) scale(1.1); }
+    66% { transform: translate(-20px, 20px) scale(0.9); }
+    100% { transform: translate(0px, 0px) scale(1); }
+  }
+
+  @keyframes gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
   }
 }
 

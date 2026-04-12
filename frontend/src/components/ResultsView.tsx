@@ -40,7 +40,7 @@ export const ResultsView = ({ data, onReset }: Props) => {
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
 
-        <div className="flex flex-col items-center justify-center space-y-6">
+        <div className="flex flex-col items-center justify-center space-y-8">
           <div className="relative w-48 h-48 flex items-center justify-center">
             {/* Background Circle */}
             <svg className="absolute inset-0 w-full h-full transform -rotate-90" viewBox="0 0 100 100">
@@ -76,13 +76,13 @@ export const ResultsView = ({ data, onReset }: Props) => {
 
           <div className="max-w-xl mx-auto space-y-2 mt-4">
             {data.productName && (
-              <div className="mb-6">
-                <span className="text-xs font-bold text-teal-600 uppercase tracking-widest mb-1 block">Scanned Product</span>
-                <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900">{data.productName}</h1>
+              <div className="mb-8">
+                <span className="text-xs font-bold text-teal-600 uppercase tracking-widest mb-1.5 block">Scanned Product</span>
+                <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight">{data.productName}</h1>
               </div>
             )}
-            <h2 className="text-2xl font-bold text-slate-900 pt-2 border-t border-slate-100">Safety Analysis</h2>
-            <p className="text-slate-600 leading-relaxed">{data.summary}</p>
+            <h2 className="text-2xl font-bold text-slate-900 pt-2 border-t border-slate-100/50">Safety Analysis</h2>
+            <p className="text-slate-600 leading-relaxed text-lg">{data.summary}</p>
           </div>
         </div>
       </div>
