@@ -4,6 +4,13 @@ export interface UserProfile {
   diet: string[];
 }
 
+export interface ProductAlternative {
+  name: string;
+  brand: string;
+  why_better: string;
+  where_to_find: string;
+}
+
 export interface Ingredient {
   name: string;
   status: 'safe' | 'caution' | 'harmful';
@@ -18,5 +25,8 @@ export interface AnalysisResponse {
   overall_safety_score: number;
   summary: string;
   personalized_verdict?: string;
+  product_alternative?: ProductAlternative;
+  consumption_frequency?: string;
   productName?: string;
 }
+
