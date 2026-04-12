@@ -15,7 +15,7 @@ export const ProfileOnboarding = ({ onSave }: Props) => {
   const [conditions, setConditions] = useState<string[]>([]);
   const [diet, setDiet] = useState<string[]>([]);
 
-  const toggleSelection = (item: string, list: string[], setList: (arr: string[]) => void, isExclusiveNone: boolean = false) => {
+  const toggleSelection = (item: string, list: string[], setList: (arr: string[]) => void) => {
     if (item === 'None') {
       setList(['None']);
       return;
@@ -89,7 +89,7 @@ export const ProfileOnboarding = ({ onSave }: Props) => {
               <button
                 key={item}
                 type="button"
-                onClick={() => toggleSelection(item, conditions, setConditions, true)}
+                onClick={() => toggleSelection(item, conditions, setConditions)}
                 className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${
                   conditions.includes(item) 
                     ? 'bg-teal-50 border-teal-200 text-teal-700 shadow-sm' 
@@ -114,7 +114,7 @@ export const ProfileOnboarding = ({ onSave }: Props) => {
               <button
                 key={item}
                 type="button"
-                onClick={() => toggleSelection(item, diet, setDiet, true)}
+                onClick={() => toggleSelection(item, diet, setDiet)}
                 className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${
                   diet.includes(item) 
                     ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm' 
