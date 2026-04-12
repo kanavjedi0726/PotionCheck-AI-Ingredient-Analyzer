@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Camera, ScanBarcode, Type, Loader2, Upload, Video } from 'lucide-react';
+import { Camera, ScanBarcode, Type, Loader2, Upload, Video, Leaf } from 'lucide-react';
 import { BrowserMultiFormatReader } from '@zxing/library';
 import type { AnalysisResponse } from '../types';
 
@@ -11,9 +11,10 @@ interface Props {
 }
 
 export const InputTabs = ({ onAnalyzing, onAnalysisComplete, onError }: Props) => {
-  const [activeTab, setActiveTab] = useState<'barcode' | 'upload' | 'text'>('barcode');
+  const [activeTab, setActiveTab] = useState<'barcode' | 'upload' | 'text' | 'produce'>('barcode');
   const [barcode, setBarcode] = useState('');
   const [textInput, setTextInput] = useState('');
+  const [produceName, setProduceName] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -137,26 +138,53 @@ export const InputTabs = ({ onAnalyzing, onAnalysisComplete, onError }: Props) =
     onAnalyzing(false);
   };
 
+  const handleProduceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!produceName.trim()) return;
+
+    setIsLoading(true);
+    onAnalyzing(true);
+    try {
+      const resp = await axios.post('https://hackawarts-project.onrender.com/api/analyze-produce', {
+        produce_name: produceName
+      });
+      const data = resp.data;
+      data.productName = `Fresh Produce: ${produceName}`;
+      onAnalysisComplete(data);
+    } catch (err: any) {
+      onError(err.response?.data?.detail || err.message || 'Error analyzing produce.');
+    } finally {
+      setIsLoading(false);
+      onAnalyzing(false);
+    }
+  };
+
   return (
     <div className="w-full max-w-2xl mx-auto animate-fade-in-up">
-      <div className="glass-panel p-2 mb-6 flex gap-2">
+      <div className="glass-panel p-2 mb-6 flex flex-wrap gap-2">
         <button
           onClick={() => setActiveTab('barcode')}
-          className={`flex-1 py-3 px-4 flex justify-center items-center gap-2 ${activeTab === 'barcode' ? 'tab-active' : 'tab-inactive'}`}
+          className={`flex-1 min-w-[120px] py-3 px-2 flex justify-center items-center gap-2 ${activeTab === 'barcode' ? 'tab-active' : 'tab-inactive'}`}
         >
           <ScanBarcode className="w-5 h-5" /> <span className="hidden sm:inline">Scan Barcode</span>
         </button>
         <button
           onClick={() => setActiveTab('upload')}
-          className={`flex-1 py-3 px-4 flex justify-center items-center gap-2 ${activeTab === 'upload' ? 'tab-active' : 'tab-inactive'}`}
+          className={`flex-1 min-w-[120px] py-3 px-2 flex justify-center items-center gap-2 ${activeTab === 'upload' ? 'tab-active' : 'tab-inactive'}`}
         >
           <Camera className="w-5 h-5" /> <span className="hidden sm:inline">Upload Label</span>
         </button>
         <button
           onClick={() => setActiveTab('text')}
-          className={`flex-1 py-3 px-4 flex justify-center items-center gap-2 ${activeTab === 'text' ? 'tab-active' : 'tab-inactive'}`}
+          className={`flex-1 min-w-[120px] py-3 px-2 flex justify-center items-center gap-2 ${activeTab === 'text' ? 'tab-active' : 'tab-inactive'}`}
         >
           <Type className="w-5 h-5" /> <span className="hidden sm:inline">Paste Text</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('produce')}
+          className={`flex-1 min-w-[120px] py-3 px-2 flex justify-center items-center gap-2 ${activeTab === 'produce' ? 'tab-active' : 'tab-inactive'}`}
+        >
+          <Leaf className="w-5 h-5" /> <span className="hidden sm:inline">Fresh Produce</span>
         </button>
       </div>
 
@@ -259,6 +287,26 @@ export const InputTabs = ({ onAnalyzing, onAnalysisComplete, onError }: Props) =
             </div>
             <button type="submit" disabled={isLoading || !textInput.trim()} className="btn-primary w-full shadow-teal-500/20">
               {isLoading ? <><Loader2 className="w-5 h-5 animate-spin" /> Analyzing...</> : 'Analyze Ingredients'}
+            </button>
+          </form>
+        )}
+
+        {activeTab === 'produce' && (
+          <form onSubmit={handleProduceSubmit} className="space-y-6 relative z-10">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Fresh Fruit or Vegetable Name</label>
+              <input
+                type="text"
+                value={produceName}
+                onChange={(e) => setProduceName(e.target.value)}
+                placeholder="e.g. Apples, Strawberries, Spinach"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+                required
+              />
+              <p className="text-xs text-slate-500 mt-2">Analyzes typical pesticides, chemical fertilizers, and wax coatings.</p>
+            </div>
+            <button type="submit" disabled={isLoading || !produceName.trim()} className="btn-primary w-full shadow-teal-500/20">
+              {isLoading ? <><Loader2 className="w-5 h-5 animate-spin" /> Analyzing...</> : 'Analyze Produce'}
             </button>
           </form>
         )}
