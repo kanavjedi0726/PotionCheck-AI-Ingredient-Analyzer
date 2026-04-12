@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Camera, ScanBarcode, Type, Loader2, Upload } from 'lucide-react';
+import { Camera, ScanBarcode, Type, Loader2, Upload, Video } from 'lucide-react';
+import { BrowserMultiFormatReader } from '@zxing/library';
 import type { AnalysisResponse } from '../types';
 
 interface Props {
@@ -15,6 +16,41 @@ export const InputTabs = ({ onAnalyzing, onAnalysisComplete, onError }: Props) =
   const [textInput, setTextInput] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+
+  useEffect(() => {
+    const stopCamera = () => {
+      if (codeReaderRef.current) {
+        codeReaderRef.current.reset();
+      }
+    };
+
+    if (activeTab === 'barcode' && isCameraActive && videoRef.current) {
+      if (!codeReaderRef.current) {
+        codeReaderRef.current = new BrowserMultiFormatReader();
+      }
+      
+      codeReaderRef.current.decodeFromVideoDevice(undefined, videoRef.current, (result, err) => {
+        if (result) {
+          const text = result.getText();
+          if (text) {
+            setBarcode(text);
+            setIsCameraActive(false);
+            submitBarcodeData(text);
+          }
+        }
+      });
+    } else {
+      stopCamera();
+    }
+
+    return () => {
+      stopCamera();
+    };
+  }, [activeTab, isCameraActive]);
 
   const performAnalysis = async (ingredientsText: string, productName?: string) => {
     try {
@@ -31,14 +67,13 @@ export const InputTabs = ({ onAnalyzing, onAnalysisComplete, onError }: Props) =
     }
   };
 
-  const handleBarcodeSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!barcode) return;
+  const submitBarcodeData = async (code: string) => {
+    if (!code) return;
 
     setIsLoading(true);
     onAnalyzing(true);
     try {
-      const resp = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+      const resp = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
       if (resp.data.status !== 1) {
         throw new Error('Product not found or has no ingredient data.');
       }
@@ -56,6 +91,11 @@ export const InputTabs = ({ onAnalyzing, onAnalysisComplete, onError }: Props) =
       setIsLoading(false);
       onAnalyzing(false);
     }
+  };
+
+  const handleBarcodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitBarcodeData(barcode);
   };
 
   const handleUploadSubmit = async (e: React.FormEvent) => {
@@ -126,23 +166,53 @@ export const InputTabs = ({ onAnalyzing, onAnalysisComplete, onError }: Props) =
         <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-40 h-40 bg-indigo-500 rounded-full blur-3xl opacity-10 pointer-events-none"></div>
 
         {activeTab === 'barcode' && (
-          <form onSubmit={handleBarcodeSubmit} className="space-y-6 relative z-10">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Product Barcode (UPC/EAN)</label>
-              <input
-                type="text"
-                value={barcode}
-                onChange={(e) => setBarcode(e.target.value)}
-                placeholder="e.g. 3017620422003"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-                required
-              />
-              <p className="text-xs text-slate-500 mt-2">Powered by Open Food Facts database.</p>
-            </div>
-            <button type="submit" disabled={isLoading || !barcode} className="btn-primary w-full shadow-teal-500/20">
-              {isLoading ? <><Loader2 className="w-5 h-5 animate-spin" /> Analyzing...</> : 'Analyze Barcode'}
-            </button>
-          </form>
+          <div className="space-y-6 relative z-10">
+            {!isCameraActive ? (
+              <button 
+                type="button" 
+                onClick={() => setIsCameraActive(true)}
+                className="w-full flex items-center justify-center gap-2 py-4 px-4 border-2 border-dashed border-teal-300 rounded-xl text-teal-600 font-medium hover:bg-teal-50 transition-colors"
+              >
+                <Video className="w-5 h-5" /> Start Live Scanner
+              </button>
+            ) : (
+              <div className="relative rounded-xl overflow-hidden bg-black aspect-video flex-col flex items-center justify-center mb-4 shadow-lg border border-slate-200">
+                <video ref={videoRef} className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setIsCameraActive(false)}
+                  className="absolute top-2 right-2 bg-black/50 text-white p-2 rounded-lg text-xs font-semibold backdrop-blur-sm hover:bg-black/70 transition-colors"
+                >
+                  Stop Camera
+                </button>
+                <div className="absolute inset-0 pointer-events-none border-[3px] border-teal-500 opacity-50 m-8 rounded-lg" />
+              </div>
+            )}
+
+            <form onSubmit={handleBarcodeSubmit} className="space-y-4">
+              <div className="relative flex items-center">
+                <div className="flex-grow border-t border-slate-200"></div>
+                <span className="flex-shrink-0 mx-4 text-slate-400 text-sm">OR</span>
+                <div className="flex-grow border-t border-slate-200"></div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Manual Barcode Entry (UPC/EAN)</label>
+                <input
+                  type="text"
+                  value={barcode}
+                  onChange={(e) => setBarcode(e.target.value)}
+                  placeholder="e.g. 3017620422003"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+                  required={!isCameraActive}
+                />
+                <p className="text-xs text-slate-500 mt-2">Powered by Open Food Facts database.</p>
+              </div>
+              <button type="submit" disabled={isLoading || (!barcode && !isCameraActive)} className="btn-primary w-full shadow-teal-500/20">
+                {isLoading ? <><Loader2 className="w-5 h-5 animate-spin" /> Analyzing...</> : 'Analyze Barcode'}
+              </button>
+            </form>
+          </div>
         )}
 
         {activeTab === 'upload' && (
@@ -152,10 +222,15 @@ export const InputTabs = ({ onAnalyzing, onAnalysisComplete, onError }: Props) =
               <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-xl hover:bg-slate-50/50 transition-colors">
                 <div className="space-y-1 text-center">
                   <Upload className="mx-auto h-12 w-12 text-slate-400" />
-                  <div className="flex text-sm text-slate-600 justify-center">
+                  <div className="flex text-sm text-slate-600 justify-center gap-4 mt-2">
                     <label className="relative cursor-pointer bg-white rounded-md font-medium text-teal-600 hover:text-teal-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-teal-500">
-                      <span>Upload a file</span>
-                      <input type="file" className="sr-only" accept="image/*" onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} required />
+                      <span>Upload File</span>
+                      <input type="file" className="sr-only" accept="image/*" onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} />
+                    </label>
+                    <span className="text-slate-400">or</span>
+                    <label className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
+                      <span>Take Photo</span>
+                      <input type="file" className="sr-only" accept="image/*" capture="environment" onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} />
                     </label>
                   </div>
                   <p className="text-xs text-slate-500">PNG, JPG, GIF up to 10MB</p>
