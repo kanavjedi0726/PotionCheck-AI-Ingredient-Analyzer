@@ -2,15 +2,16 @@ import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Camera, ScanBarcode, Type, Loader2, Upload, Video, Leaf } from 'lucide-react';
 import { BrowserMultiFormatReader } from '@zxing/library';
-import type { AnalysisResponse } from '../types';
+import type { AnalysisResponse, UserProfile } from '../types';
 
 interface Props {
   onAnalyzing: (isAnalyzing: boolean) => void;
   onAnalysisComplete: (data: AnalysisResponse) => void;
   onError: (msg: string) => void;
+  userProfile: UserProfile | null;
 }
 
-export const InputTabs = ({ onAnalyzing, onAnalysisComplete, onError }: Props) => {
+export const InputTabs = ({ onAnalyzing, onAnalysisComplete, onError, userProfile }: Props) => {
   const [activeTab, setActiveTab] = useState<'barcode' | 'upload' | 'text' | 'produce'>('barcode');
   const [barcode, setBarcode] = useState('');
   const [textInput, setTextInput] = useState('');
@@ -55,9 +56,11 @@ export const InputTabs = ({ onAnalyzing, onAnalysisComplete, onError }: Props) =
 
   const performAnalysis = async (ingredientsText: string, productName?: string) => {
     try {
-      const resp = await axios.post('https://hackawarts-project.onrender.com/api/analyze', {
-        ingredients_text: ingredientsText
-      });
+      const payload: any = { ingredients_text: ingredientsText };
+      if (userProfile) {
+        payload.user_profile = userProfile;
+      }
+      const resp = await axios.post('https://hackawarts-project.onrender.com/api/analyze', payload);
       const data = resp.data;
       if (productName) {
         data.productName = productName;
@@ -145,9 +148,11 @@ export const InputTabs = ({ onAnalyzing, onAnalysisComplete, onError }: Props) =
     setIsLoading(true);
     onAnalyzing(true);
     try {
-      const resp = await axios.post('https://hackawarts-project.onrender.com/api/analyze-produce', {
-        produce_name: produceName
-      });
+      const payload: any = { produce_name: produceName };
+      if (userProfile) {
+        payload.user_profile = userProfile;
+      }
+      const resp = await axios.post('https://hackawarts-project.onrender.com/api/analyze-produce', payload);
       const data = resp.data;
       data.productName = `Fresh Produce: ${produceName}`;
       onAnalysisComplete(data);

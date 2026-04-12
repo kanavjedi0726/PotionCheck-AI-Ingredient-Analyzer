@@ -1,6 +1,6 @@
 import type { AnalysisResponse } from '../types';
 import { IngredientCard } from './IngredientCard';
-import { Sparkles, ArrowLeft } from 'lucide-react';
+import { Sparkles, ArrowLeft, ShieldCheck, ShieldAlert } from 'lucide-react';
 
 interface Props {
   data: AnalysisResponse;
@@ -28,8 +28,40 @@ export const ResultsView = ({ data, onReset }: Props) => {
     return order[a.status] - order[b.status];
   });
 
+  // Count profile conflicts
+  const conflictCount = data.ingredients.filter(i => i.user_conflict).length;
+
   return (
     <div className="w-full max-w-3xl mx-auto space-y-8 animate-fade-in-up">
+      {/* Personalized Verdict Banner */}
+      {data.personalized_verdict && (
+        <div className={`rounded-2xl p-6 flex items-start gap-4 shadow-lg border-2 ${
+          conflictCount > 0
+            ? 'bg-red-600 border-red-700 text-white'
+            : 'bg-emerald-600 border-emerald-700 text-white'
+        }`}>
+          <div className="flex-shrink-0 mt-0.5">
+            {conflictCount > 0
+              ? <ShieldAlert className="w-8 h-8 text-white" />
+              : <ShieldCheck className="w-8 h-8 text-white" />
+            }
+          </div>
+          <div>
+            <p className={`text-xs font-bold uppercase tracking-widest mb-1 opacity-80`}>
+              Personal Health Verdict
+            </p>
+            <p className="text-xl md:text-2xl font-extrabold leading-snug">
+              {data.personalized_verdict}
+            </p>
+            {conflictCount > 0 && (
+              <p className="mt-2 text-sm font-semibold text-red-100">
+                {conflictCount} ingredient{conflictCount > 1 ? 's' : ''} conflict{conflictCount === 1 ? 's' : ''} with your health profile — see highlights below.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="glass-panel p-8 md:p-12 text-center relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-400 to-emerald-400"></div>
         

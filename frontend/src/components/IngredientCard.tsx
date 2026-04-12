@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Ingredient } from '../types';
-import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, AlertTriangle, ShieldX } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, AlertTriangle, ShieldX, UserX } from 'lucide-react';
 
 interface Props {
   ingredient: Ingredient;
@@ -51,22 +51,41 @@ export const IngredientCard = ({ ingredient }: Props) => {
   };
 
   const config = getStatusConfig(ingredient.status);
+  const isConflict = ingredient.user_conflict === true;
 
   return (
-    <div className={`rounded-xl border ${config.border} ${config.bg} transition-all duration-300 overflow-hidden shadow-sm hover:shadow-md`}>
+    <div className={`rounded-xl border-2 transition-all duration-300 overflow-hidden shadow-sm hover:shadow-md
+      ${ isConflict 
+        ? 'border-red-500 bg-red-50 ring-2 ring-red-300 ring-offset-1 animate-pulse-border' 
+        : `${config.border} ${config.bg}`
+      }`
+    }>
+      {isConflict && (
+        <div className="bg-red-500 px-5 py-2 flex items-center gap-2">
+          <UserX className="w-4 h-4 text-white flex-shrink-0" />
+          <span className="text-white text-xs font-bold uppercase tracking-widest">⚠ Not recommended for you</span>
+        </div>
+      )}
       <div 
         className="p-5 flex items-center justify-between cursor-pointer hover:bg-black/[0.02]"
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-center gap-4">
-          <div className={`p-2.5 rounded-xl ${config.badgeBg} shadow-sm`}>
-            {config.icon}
+          <div className={`p-2.5 rounded-xl ${isConflict ? 'bg-red-100' : config.badgeBg} shadow-sm`}>
+            {isConflict ? <UserX className="w-5 h-5 text-red-500" /> : config.icon}
           </div>
           <div>
-            <h3 className="text-lg font-bold text-slate-900 capitalize tracking-tight mb-0.5">{ingredient.name}</h3>
-            <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${config.badgeBg} ${config.text} uppercase tracking-widest inline-block`}>
-              {config.label}
-            </span>
+            <h3 className={`text-lg font-bold capitalize tracking-tight mb-0.5 ${isConflict ? 'text-red-900' : 'text-slate-900'}`}>{ingredient.name}</h3>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${config.badgeBg} ${config.text} uppercase tracking-widest inline-block`}>
+                {config.label}
+              </span>
+              {isConflict && (
+                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-red-100 text-red-600 uppercase tracking-widest inline-block">
+                  Profile Conflict
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <button className="text-slate-400 hover:text-slate-700 transition-colors p-2 rounded-full hover:bg-slate-200/60">

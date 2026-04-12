@@ -1,7 +1,8 @@
 import os
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Optional, Dict, Any
 import pytesseract
 from PIL import Image
 import io
@@ -32,13 +33,34 @@ client = Groq(
 
 class AnalyzeRequest(BaseModel):
     ingredients_text: str
+    user_profile: Optional[Dict[str, Any]] = None
 
 class ProduceRequest(BaseModel):
     produce_name: str
+    user_profile: Optional[Dict[str, Any]] = None
 
-SYSTEM_PROMPT = """You are a strict, medically-focused food regulatory safety analyst. You will be given a list of food ingredients. For each ingredient, identify whether it is safe, requires caution, or is harmful to human health. ADHERE TO THE FOLLOWING STRICT GUIDELINES: 1. Flag ANY ingredient with known health controversies as 'caution' minimum. 2. Be extremely aggressive in marking synthetic additives, artificial preservatives, artificial colors, and artificial sweeteners as 'harmful'. 3. If an ingredient is banned or restricted in EVEN ONE major country/region (e.g., EU, UK, Canada, Japan), it must be marked as 'caution' minimum, and typically 'harmful'. Exhaustively list every specific country where it is banned or restricted. 4. Provide detailed medical and scientific reasons highlighting physiological risks (e.g., microbiome disruption, endocrine disruption, carcinogenicity, neurotoxicity). 5. Calculate a strict overall_safety_score (0-100). Punish processed foods with chemical additives severely—most standard processed foods should score below 50. 6. Suggest a healthier, natural alternative. 7. The summary should read like a serious, authoritative medical/regulatory warning report. Respond ONLY in valid JSON with this exact structure — no preamble, no markdown: { "ingredients": [ { "name": "", "status": "safe or caution or harmful", "reason": "Detailed medical/scientific risks", "banned_in": ["Country 1", "Country 2"], "alternative": "" } ], "overall_safety_score": 0-100, "summary": "Medical/regulatory report summary" }"""
+SYSTEM_PROMPT = """You are a strict, medically-focused food regulatory safety analyst. You will be given a list of food ingredients. The user may also provide their specific Health Profile (Allergies, Medical Conditions, Diet Type).
+ADHERE TO THE FOLLOWING STRICT GUIDELINES:
+1. Flag ANY ingredient with known health controversies as 'caution' minimum. Be extremely aggressive in marking synthetic additives, artificial preservatives, colors, and sweeteners as 'harmful'.
+2. If an ingredient is banned/restricted in EVEN ONE major country/region, mark it as 'caution' minimum, typically 'harmful', and list the specific countries.
+3. Provide detailed medical and scientific reasons highlighting physiological risks.
+4. Suggest a healthier, natural alternative.
+5. If the user provides a Health Profile, you MUST evaluate if any ingredient directly impacts or violates their conditions/allergies/diet. Set "user_conflict" to true for those specific ingredients.
+6. Provide a personalized_verdict at the top string declaring if the overall product is safe or unsafe specifically for the user based on their profile.
+7. Calculate a strict overall_safety_score (0-100). Punish processed foods with chemical additives severely.
+Respond ONLY in valid JSON with this exact structure — no preamble: { "ingredients": [ { "name": "", "status": "safe or caution or harmful", "reason": "Detailed risks", "banned_in": [""], "alternative": "", "user_conflict": false } ], "overall_safety_score": 0-100, "summary": "Medical report summary", "personalized_verdict": "Specific advice based on user profile, if any" }"""
 
-PRODUCE_SYSTEM_PROMPT = """You are a strict, medically-focused agricultural toxicologist. You will be given the name of a fresh fruit or vegetable. Your task is to identify the common synthetic pesticides, chemical fertilizers, wax coatings, fungicides, and preservatives typically used in conventional farming and post-harvest processing for this specific produce. Treat these chemicals as 'ingredients'. ADHERE TO THE FOLLOWING STRICT GUIDELINES: 1. Be extremely aggressive in marking pesticides, waxes, and synthetic chemicals as 'harmful' or 'caution' based on medical literature. Flag anything with known health controversies. 2. If a pesticide/chemical is banned in EVEN ONE major country/region (e.g., EU, UK, Canada, Brazil), mark it as 'caution' minimum, usually 'harmful'. Exhaustively list all countries where it is banned. 3. Provide detailed medical and scientific reasons detailing exact physiological and toxicological risks (e.g., neurotoxic to developing brains, endocrine disruptor, probable carcinogen). 4. Calculate a strict overall_safety_score (0-100). Conventionally grown produce with high typical pesticide loads MUST score severely low. 5. Suggest organic alternatives or clinically proven washing recommendations (e.g. baking soda wash). 6. The summary must read like a serious toxicological and medical regulatory report warning consumers about typical exposures. Respond ONLY in valid JSON with this exact structure — no preamble, no markdown: { "ingredients": [ { "name": "Chemical Name", "status": "safe or caution or harmful", "reason": "Detailed medical/toxicology risk", "banned_in": ["Country 1"], "alternative": "Avoidance strategy" } ], "overall_safety_score": 0-100, "summary": "Clinical toxicology warning summary" }"""
+PRODUCE_SYSTEM_PROMPT = """You are a strict, medically-focused agricultural toxicologist. You will be given the name of a fresh fruit or vegetable. The user may also provide their Health Profile (Allergies, Medical Conditions, Diet Type).
+Your task is to identify the common synthetic pesticides, chemical fertilizers, wax coatings, fungicides, and preservatives typically used in conventional farming and post-harvest processing for this specific produce.
+ADHERE TO THE FOLLOWING STRICT GUIDELINES:
+1. Be extremely aggressive in marking pesticides, waxes, and synthetic chemicals as 'harmful' or 'caution'.
+2. If banned in EVEN ONE major country/region, mark it 'caution' minimum. List all countries.
+3. Provide detailed toxicological risks.
+4. Suggest organic alternatives or washing recommendations.
+5. If the user provides a Health Profile, evaluate if any chemical poses a unique risk to their conditions. Set "user_conflict" to true for those chemicals.
+6. Provide a personalized_verdict declaring if this conventional produce poses outsized risk for their specific profile.
+7. Calculate a strict overall_safety_score (0-100).
+Respond ONLY in valid JSON with this exact structure — no preamble: { "ingredients": [ { "name": "", "status": "safe or caution or harmful", "reason": "Detailed toxicology risk", "banned_in": [""], "alternative": "", "user_conflict": false } ], "overall_safety_score": 0-100, "summary": "Clinical toxicology summary", "personalized_verdict": "Specific advice based on user profile, if any" }"""
 
 @app.post("/api/extract-text")
 async def extract_text(file: UploadFile = File(...)):
@@ -59,6 +81,10 @@ async def analyze_ingredients(request: AnalyzeRequest):
         raise HTTPException(status_code=400, detail="Ingredients text cannot be empty.")
         
     try:
+        user_msg = f"Ingredients: {request.ingredients_text}"
+        if request.user_profile:
+            user_msg = f"User Profile: {json.dumps(request.user_profile)}\n\n" + user_msg
+
         chat_completion = client.chat.completions.create(
             messages=[
                 {
@@ -67,7 +93,7 @@ async def analyze_ingredients(request: AnalyzeRequest):
                 },
                 {
                     "role": "user",
-                    "content": request.ingredients_text
+                    "content": user_msg
                 }
             ],
             model="llama-3.3-70b-versatile",
@@ -96,6 +122,10 @@ async def analyze_produce(request: ProduceRequest):
         raise HTTPException(status_code=400, detail="Produce name cannot be empty.")
         
     try:
+        user_msg = f"Produce: {request.produce_name}"
+        if request.user_profile:
+            user_msg = f"User Profile: {json.dumps(request.user_profile)}\n\n" + user_msg
+
         chat_completion = client.chat.completions.create(
             messages=[
                 {
@@ -104,7 +134,7 @@ async def analyze_produce(request: ProduceRequest):
                 },
                 {
                     "role": "user",
-                    "content": request.produce_name
+                    "content": user_msg
                 }
             ],
             model="llama-3.3-70b-versatile",

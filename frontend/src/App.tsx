@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { InputTabs } from './components/InputTabs';
 import { ResultsView } from './components/ResultsView';
-import type { AnalysisResponse } from './types';
-import { Activity, Beaker } from 'lucide-react';
+import type { AnalysisResponse, UserProfile } from './types';
+import { Activity, Beaker, UserSquare2 } from 'lucide-react';
+import { ProfileOnboarding } from './components/ProfileOnboarding';
 
 function App() {
   const [analysisData, setAnalysisData] = useState<AnalysisResponse | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     // Load from local storage on mount
@@ -19,7 +21,21 @@ function App() {
         console.error("Failed to parse saved analysis data", e);
       }
     }
+    
+    const savedProfile = localStorage.getItem('potioncheck_profile');
+    if (savedProfile) {
+      try {
+        setUserProfile(JSON.parse(savedProfile));
+      } catch (e) {
+        console.error("Failed to parse saved profile", e);
+      }
+    }
   }, []);
+
+  const handleSaveProfile = (profile: UserProfile) => {
+    setUserProfile(profile);
+    localStorage.setItem('potioncheck_profile', JSON.stringify(profile));
+  };
 
   const handleAnalysisComplete = (data: AnalysisResponse) => {
     setAnalysisData(data);
@@ -31,6 +47,11 @@ function App() {
     setAnalysisData(null);
     localStorage.removeItem('potioncheck_analysis');
     setErrorMsg(null);
+  };
+
+  const clearProfile = () => {
+    setUserProfile(null);
+    localStorage.removeItem('potioncheck_profile');
   };
 
   return (
@@ -57,6 +78,18 @@ function App() {
           Advanced AI-Powered Ingredient Intelligence System
         </p>
       </header>
+
+      {userProfile && (
+        <div className="absolute top-6 right-6 z-20">
+          <button 
+            onClick={clearProfile}
+            className="flex items-center gap-2 bg-white/50 backdrop-blur-sm border border-slate-200 px-4 py-2 rounded-full text-sm font-medium text-slate-600 hover:bg-white hover:shadow-sm transition-all"
+          >
+            <UserSquare2 className="w-4 h-4 text-teal-600" />
+            Edit Profile
+          </button>
+        </div>
+      )}
 
       <main className="px-4 pb-20 pt-4 flex-grow relative z-10">
         {errorMsg && (
@@ -87,6 +120,8 @@ function App() {
             <h3 className="text-xl font-bold text-slate-800 mb-2">Analyzing Formula...</h3>
             <p className="text-slate-500">Cross-referencing ingredients with global safety databases using AI.</p>
           </div>
+        ) : !userProfile ? (
+          <ProfileOnboarding onSave={handleSaveProfile} />
         ) : analysisData ? (
           <ResultsView data={analysisData} onReset={handleReset} />
         ) : (
@@ -94,6 +129,7 @@ function App() {
             onAnalyzing={setIsAnalyzing} 
             onAnalysisComplete={handleAnalysisComplete} 
             onError={setErrorMsg}
+            userProfile={userProfile}
           />
         )}
       </main>
