@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Body
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
@@ -8,11 +8,10 @@ from PIL import Image
 import io
 import json
 from dotenv import load_dotenv
-from groq import Groq
+import google.generativeai as genai
 
 load_dotenv()
 
-# Optionally set tesseract path if provided in .env
 tesseract_cmd = os.getenv("TESSERACT_CMD_PATH")
 if tesseract_cmd:
     pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
@@ -27,9 +26,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-client = Groq(
-    api_key=os.getenv("GROQ_API_KEY"),
-)
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 class AnalyzeRequest(BaseModel):
     ingredients_text: str
@@ -73,10 +71,7 @@ async def extract_text(file: UploadFile = File(...)):
     try:
         contents = await file.read()
         image = Image.open(io.BytesIO(contents))
-        
-        # We might want to perform some basic image preprocessing here, but we will pass it directly for now.
         extracted_text = pytesseract.image_to_string(image)
-        
         return {"extracted_text": extracted_text.strip()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -85,40 +80,17 @@ async def extract_text(file: UploadFile = File(...)):
 async def analyze_ingredients(request: AnalyzeRequest):
     if not request.ingredients_text or not request.ingredients_text.strip():
         raise HTTPException(status_code=400, detail="Ingredients text cannot be empty.")
-        
     try:
         user_msg = f"Ingredients: {request.ingredients_text}"
         if request.user_profile:
             user_msg = f"User Profile: {json.dumps(request.user_profile)}\n\n" + user_msg
-
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "system",
-                    "content": SYSTEM_PROMPT
-                },
-                {
-                    "role": "user",
-                    "content": user_msg
-                }
-            ],
-            model="llama-3.3-70b-versatile",
-            response_format={"type": "json_object"},
-        )
-        
-        # Extract the json text from the response
-        response_text = chat_completion.choices[0].message.content
-        
-        # Clean up in case there's any markdown formatting accidentally returned
-        response_text = response_text.strip()
+        response = model.generate_content(SYSTEM_PROMPT + "\n\n" + user_msg)
+        response_text = response.text.strip()
         if response_text.startswith("```json"):
             response_text = response_text[7:]
         if response_text.endswith("```"):
             response_text = response_text[:-3]
-            
-        parsed_json = json.loads(response_text)
-        return parsed_json
-        
+        return json.loads(response_text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -126,37 +98,17 @@ async def analyze_ingredients(request: AnalyzeRequest):
 async def analyze_produce(request: ProduceRequest):
     if not request.produce_name or not request.produce_name.strip():
         raise HTTPException(status_code=400, detail="Produce name cannot be empty.")
-        
     try:
         user_msg = f"Produce: {request.produce_name}"
         if request.user_profile:
             user_msg = f"User Profile: {json.dumps(request.user_profile)}\n\n" + user_msg
-
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "system",
-                    "content": PRODUCE_SYSTEM_PROMPT
-                },
-                {
-                    "role": "user",
-                    "content": user_msg
-                }
-            ],
-            model="llama-3.3-70b-versatile",
-            response_format={"type": "json_object"},
-        )
-        
-        response_text = chat_completion.choices[0].message.content
-        response_text = response_text.strip()
+        response = model.generate_content(PRODUCE_SYSTEM_PROMPT + "\n\n" + user_msg)
+        response_text = response.text.strip()
         if response_text.startswith("```json"):
             response_text = response_text[7:]
         if response_text.endswith("```"):
             response_text = response_text[:-3]
-            
-        parsed_json = json.loads(response_text)
-        return parsed_json
-        
+        return json.loads(response_text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
