@@ -8,7 +8,7 @@ from PIL import Image
 import io
 import json
 from dotenv import load_dotenv
-import google.generativeai as genai
+from google import genai
 
 load_dotenv()
 
