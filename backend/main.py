@@ -1,23 +1,29 @@
 import os
+import io
+import json
+
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
+
 import pytesseract
 from PIL import Image
-import io
-import json
 from dotenv import load_dotenv
 from google import genai
 
+# Load environment variables
 load_dotenv()
 
+# Tesseract OCR configuration
 tesseract_cmd = os.getenv("TESSERACT_CMD_PATH")
 if tesseract_cmd:
     pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
 
+# Initialize FastAPI
 app = FastAPI(title="PotionCheck API")
 
+# CORS configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -26,6 +32,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Gemini configuration
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 if not GEMINI_API_KEY:
@@ -35,14 +42,19 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 
 MODEL_NAME = "gemini-3.8-flash"
 
+
+# Request models
 class AnalyzeRequest(BaseModel):
     ingredients_text: str
     user_profile: Optional[Dict[str, Any]] = None
+
 
 class ProduceRequest(BaseModel):
     produce_name: str
     user_profile: Optional[Dict[str, Any]] = None
 
+
+# Ingredient analysis prompt
 SYSTEM_PROMPT = """You are a strict, medically-focused food regulatory safety analyst. You will be given a list of food ingredients. The user may also provide their specific Health Profile (Allergies, Medical Conditions, Diet Type).
 ADHERE TO THE FOLLOWING STRICT GUIDELINES:
 1. Flag ANY ingredient with known health controversies as 'caution' minimum. Be extremely aggressive in marking synthetic additives, artificial preservatives, colors, and sweeteners as 'harmful'.
@@ -57,6 +69,8 @@ ADHERE TO THE FOLLOWING STRICT GUIDELINES:
 Respond ONLY in valid JSON with this exact structure — no preamble:
 { "ingredients": [ { "name": "", "status": "safe or caution or harmful", "reason": "Detailed risks", "banned_in": [""], "alternative": "", "user_conflict": false } ], "overall_safety_score": 0-100, "summary": "Medical report summary", "personalized_verdict": "Specific verdict for this user", "product_alternative": { "name": "Product Name", "brand": "Brand Name", "why_better": "Why this is safer for the user's profile", "where_to_find": "Supermarkets / Amazon / Health stores" }, "consumption_frequency": "Max X times per week" }"""
 
+
+# Fresh produce analysis prompt
 PRODUCE_SYSTEM_PROMPT = """You are a strict, medically-focused agricultural toxicologist. You will be given the name of a fresh fruit or vegetable. The user may also provide their Health Profile (Allergies, Medical Conditions, Diet Type).
 Your task is to identify the common synthetic pesticides, chemical fertilizers, wax coatings, fungicides, and preservatives typically used in conventional farming and post-harvest processing for this specific produce.
 ADHERE TO THE FOLLOWING STRICT GUIDELINES:
@@ -72,52 +86,106 @@ ADHERE TO THE FOLLOWING STRICT GUIDELINES:
 Respond ONLY in valid JSON with this exact structure — no preamble:
 { "ingredients": [ { "name": "", "status": "safe or caution or harmful", "reason": "Detailed toxicology risk", "banned_in": [""], "alternative": "", "user_conflict": false } ], "overall_safety_score": 0-100, "summary": "Clinical toxicology summary", "personalized_verdict": "Specific verdict for this user", "product_alternative": { "name": "Organic Product Name", "brand": "Brand Name", "why_better": "Why this is safer for the user", "where_to_find": "Health stores / Online" }, "consumption_frequency": "Max X times per week" }"""
 
+
+# Helper function to clean Gemini JSON responses
+def parse_gemini_response(response):
+    if not response.text:
+        raise ValueError("Gemini returned an empty response.")
+
+    response_text = response.text.strip()
+
+    if response_text.startswith("```json"):
+        response_text = response_text[7:]
+
+    elif response_text.startswith("```"):
+        response_text = response_text[3:]
+
+    if response_text.endswith("```"):
+        response_text = response_text[:-3]
+
+    return json.loads(response_text.strip())
+
+
+# Extract text from uploaded food labels
 @app.post("/api/extract-text")
 async def extract_text(file: UploadFile = File(...)):
     try:
         contents = await file.read()
         image = Image.open(io.BytesIO(contents))
+
         extracted_text = pytesseract.image_to_string(image)
-        return {"extracted_text": extracted_text.strip()}
+
+        return {
+            "extracted_text": extracted_text.strip()
+        }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# Analyze food ingredients using Gemini
 @app.post("/api/analyze")
 async def analyze_ingredients(request: AnalyzeRequest):
+
     if not request.ingredients_text or not request.ingredients_text.strip():
-        raise HTTPException(status_code=400, detail="Ingredients text cannot be empty.")
+        raise HTTPException(
+            status_code=400,
+            detail="Ingredients text cannot be empty."
+        )
+
     try:
         user_msg = f"Ingredients: {request.ingredients_text}"
+
         if request.user_profile:
-            user_msg = f"User Profile: {json.dumps(request.user_profile)}\n\n" + user_msg
-        response = model.generate_content(SYSTEM_PROMPT + "\n\n" + user_msg)
-        response_text = response.text.strip()
-        if response_text.startswith("```json"):
-            response_text = response_text[7:]
-        if response_text.endswith("```"):
-            response_text = response_text[:-3]
-        return json.loads(response_text)
+            user_msg = (
+                f"User Profile: {json.dumps(request.user_profile)}\n\n"
+                + user_msg
+            )
+
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=SYSTEM_PROMPT + "\n\n" + user_msg
+        )
+
+        return parse_gemini_response(response)
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# Analyze fresh fruits and vegetables using Gemini
 @app.post("/api/analyze-produce")
 async def analyze_produce(request: ProduceRequest):
+
     if not request.produce_name or not request.produce_name.strip():
-        raise HTTPException(status_code=400, detail="Produce name cannot be empty.")
+        raise HTTPException(
+            status_code=400,
+            detail="Produce name cannot be empty."
+        )
+
     try:
         user_msg = f"Produce: {request.produce_name}"
+
         if request.user_profile:
-            user_msg = f"User Profile: {json.dumps(request.user_profile)}\n\n" + user_msg
-        response = model.generate_content(PRODUCE_SYSTEM_PROMPT + "\n\n" + user_msg)
-        response_text = response.text.strip()
-        if response_text.startswith("```json"):
-            response_text = response_text[7:]
-        if response_text.endswith("```"):
-            response_text = response_text[:-3]
-        return json.loads(response_text)
+            user_msg = (
+                f"User Profile: {json.dumps(request.user_profile)}\n\n"
+                + user_msg
+            )
+
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=PRODUCE_SYSTEM_PROMPT + "\n\n" + user_msg
+        )
+
+        return parse_gemini_response(response)
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# Backend health check
 @app.get("/api/health")
 def health_check():
-    return {"status": "ok"}
+    return {
+        "status": "ok"
+    }
