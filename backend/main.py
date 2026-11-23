@@ -26,8 +26,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-1.5-flash")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+if not GEMINI_API_KEY:
+    raise RuntimeError("GEMINI_API_KEY is missing!")
+
+client = genai.Client(api_key=GEMINI_API_KEY)
+
+MODEL_NAME = "gemini-3.8-flash"
 
 class AnalyzeRequest(BaseModel):
     ingredients_text: str
